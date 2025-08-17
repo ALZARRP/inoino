@@ -33,6 +33,7 @@ unsigned long lastSimMs = 0;
 unsigned long lastLCDMs = 0;
 unsigned long lastRGBMs = 0;
 int WIDTH = 0, HEIGHT = 0;
+float cubeAngle = 0.0f;
 
 // Simulation
 bool simRunning = true;
@@ -120,6 +121,9 @@ const char INDEX_HTML[] PROGMEM =
 "</body>"
 "</html>";
 
+// ---------- Function Prototypes ----------
+String jsonStats();
+
 // ---------- HTTP Handlers ----------
 void hRoot() { server.send_P(200, "text/html", INDEX_HTML); }
 void hStats() { server.send(200, "application/json", jsonStats()); }
@@ -164,6 +168,30 @@ void hUploadStream() {
 }
 void hUploadFinish() { server.send(200, "text/plain", "OK"); }
 
+// ---------- JSON Builder Implementation ----------
+String jsonStats() {
+  String s = "{";
+  s += "\"uptime\":" + String((millis() - bootMs) / 1000) + ",";
+  s += "\"running\":" + (simRunning ? String("true") : String("false")) + ",";
+  s += "\"rgbSync\":" + (rgbSync ? String("true") : String("false")) + ",";
+  s += "\"profileName\":\"" + profileName + "\",";
+  s += "\"profilePlan\":\"" + profilePlan + "\",";
+  s += "\"globalHashrate\":" + String(globalHashrate, 2) + ",";
+  s += "\"globalPower\":" + String(globalPower, 2) + ",";
+  s += "\"acceptedShares\":" + String(acceptedShares) + ",";
+  s += "\"rejectedShares\":" + String(rejectedShares) + ",";
+  s += "\"latencyMs\":" + String(latencyMs) + ",";
+  s += "\"deviceTemp\":" + String(deviceTemp, 1) + ",";
+  s += "\"workers\":[";
+  for (int i = 0; i < workerCount; i++) {
+    s += "{\"name\":\"" + workers[i].name + "\",\"hashrate\":" + String(workers[i].hashrate, 2) + ",\"temp\":" + String(workers[i].temp) + ",\"online\":" + (workers[i].online ? "true" : "false") + "}";
+    if (i < workerCount - 1) s += ",";
+  }
+  s += "]";
+  s += "}";
+  return s;
+}
+
 // ---------- LCD & 3D Drawing ----------
 void drawCube(TFT_eSprite* spr, float ang) {
   int cx = WIDTH / 2, cy = HEIGHT / 2 + 4;
@@ -198,7 +226,6 @@ void setup() {
   Serial.begin(115200);
   randomSeed(esp_random());
 
-  // --- Display ---
   tft.init();
   tft.setRotation(1);
   WIDTH = tft.width();
@@ -206,13 +233,11 @@ void setup() {
   canvas.createSprite(WIDTH, HEIGHT);
   tft.fillScreen(TFT_BLACK);
 
-  // --- File System ---
   if (!SPIFFS.begin(true)) {
     tft.drawString("SPIFFS Mount Failed", 0, 0);
-    return;
+    while(1);
   }
 
-  // --- RGB LED ---
 #if USE_NEOPIXEL
   rgb.begin();
   rgb.setBrightness(20);
@@ -220,11 +245,9 @@ void setup() {
   rgb.show();
 #endif
 
-  // --- Wi-Fi Access Point ---
   WiFi.mode(WIFI_AP);
   WiFi.softAP(AP_SSID, AP_PASS);
 
-  // --- Web Server Routes ---
   server.on("/", HTTP_GET, hRoot);
   server.on("/api/stats", HTTP_GET, hStats);
   server.on("/api/profile", HTTP_POST, hProfile);
@@ -241,7 +264,6 @@ void loop() {
 
   if (millis() - lastSimMs > 1000) {
     lastSimMs = millis();
-    // Update simulation data (simplified)
     for (int i = 0; i < workerCount; i++) {
         workers[i].name = "w-" + String(i);
         workers[i].online = random(0, 100) > 10;
@@ -250,10 +272,9 @@ void loop() {
             workers[i].temp = random(42, 86);
         }
     }
-    float H=0, P=0;
-    for(int i=0;i<workerCount;i++){ if(workers[i].online){ H+=workers[i].hashrate; P+=workers[i].power; }}
+    float H=0;
+    for(int i=0;i<workerCount;i++){ if(workers[i].online){ H+=workers[i].hashrate; }}
     globalHashrate = H;
-    globalPower = P;
     latencyMs = constrain(latencyMs + random(-4,5), 16, 120);
   }
 
