@@ -170,7 +170,7 @@ String jsonStats(){
 }
 
 // ---------- HTTP assets (ALL INLINE; SINGLE FILE) ----------
-const char INDEX_HTML[] PROGMEM = R"EOF_HTML(
+const char INDEX_HTML[] PROGMEM = R"__NEON_SIM_HTML__(
 <!doctype html>
 <html lang="en">
 <head>
@@ -520,7 +520,7 @@ if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js'); 
 </script>
 </body>
 </html>
-)EOF_HTML";
+)__NEON_SIM_HTML__";
 const char MANIFEST_JSON[] PROGMEM = R"JSON({ "name":"NEON SIM", "short_name":"NEON SIM", "start_url":"/", "display":"standalone", "background_color":"#040614", "theme_color":"#00e5ff", "icons":[ { "src":"data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%2300e5ff%22><path d=%22M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5-10-5-10 5z%22/></svg>", "sizes":"192x192", "type":"image/svg+xml"} ] })JSON";
 
 const char SW_JS[] PROGMEM = R"JS( // Minimal offline cache const C='neon-sim-v2'; self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(['/','/manifest.json'])));}); self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)));}); )JS";
